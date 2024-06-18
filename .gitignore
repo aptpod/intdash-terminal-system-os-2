@@ -1,0 +1,12 @@
+# develop environment
+.vscode
+.history
+# poky
+/poky
+/downloads
+/resources
+/sstate-cache
+# mender
+/mender/artifacts/**/*.mender
+# docker
+/docker/*/*.deb

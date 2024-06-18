@@ -1,0 +1,207 @@
+#!/bin/bash
+
+set -e
+
+show_help() {
+    cat <<EOF
+
+NAME:
+    Generate Mender Artifact for Custom Update Module
+
+USAGE:
+    $0 [REQUIRED ARGUMENTS] [OPTIONS] [-- [options-for-mender-artifact] ]
+
+REQUIRED ARGUMENTS:
+    -n, --artifact-name     Artifact name
+    -t, --device-type       Target device(s) type identification
+                            Specify multiple times supports multiple device types
+    -s  --custom-script     Custom script file
+
+OPTIONS:
+    -v, --artifact-version    Artifact version, If not specified, the software version will be removed.
+    -c, --contents-dir        Contents directory to bundle in the update module
+    -f, --software-filesystem Software filesystem
+    -o, --output-dir          Output directory
+    -h, --help                Show help and exit
+
+EOF
+}
+
+show_help_and_exit_error() {
+    show_help
+    exit 1
+}
+
+check_dependency() {
+    if ! which "$1" >/dev/null; then
+        echo "The $1 utility is not found but required to generate Artifacts." 1>&2
+        return 1
+    fi
+}
+
+if ! check_dependency mender-artifact; then
+    echo "Please follow the instructions here to install mender-artifact and then try again: https://docs.mender.io/downloads#mender-artifact" 1>&2
+    exit 1
+fi
+
+readonly module_name="custom"
+readonly custom_script_name="custom_script.sh"
+artifact_name=""
+artifact_version=""
+device_type_args=""
+custom_script=""
+contents_dir=""
+software_filesystem="rootfs-image"
+output_dir="."
+passthrough=0
+passthrough_args=""
+
+software_name=""
+software_version_args=""
+file_args=""
+custom_script_tmp=""
+contents_tgz="contents.tgz"
+
+while (("$#")); do
+    if test ${passthrough} -eq 1; then
+        passthrough_args="${passthrough_args} $1"
+        shift
+        continue
+    fi
+    case "$1" in
+    --artifact-name | -n)
+        if [ -z "$2" ]; then
+            show_help_and_exit_error
+        fi
+        artifact_name=$2
+        shift 2
+        ;;
+    --artifact-version | -v)
+        if [ -z "$2" ]; then
+            show_help_and_exit_error
+        fi
+        artifact_version=$2
+        shift 2
+        ;;
+    --device-type | -t)
+        if [ -z "$2" ]; then
+            show_help_and_exit_error
+        fi
+        device_type_args="${device_type_args} -t $2"
+        shift 2
+        ;;
+    --custom-script | -s)
+        if [ -z "$2" ]; then
+            show_help_and_exit_error
+        fi
+        custom_script=$2
+        shift 2
+        ;;
+    --contents-dir | -c)
+        if [ -z "$2" ]; then
+            show_help_and_exit_error
+        fi
+        contents_dir=$2
+        shift 2
+        ;;
+    --software-filesystem | -f)
+        if [ -z "$2" ]; then
+            show_help_and_exit_error
+        fi
+        software_filesystem=$2
+        shift 2
+        ;;
+    --output-dir | -o)
+        if [ -z "$2" ]; then
+            show_help_and_exit_error
+        fi
+        output_dir=$2
+        shift 2
+        ;;
+    -h | --help)
+        show_help
+        exit 0
+        ;;
+    --)
+        passthrough=1
+        shift
+        ;;
+    *)
+        echo "Error: unsupported option $1"
+        show_help_and_exit_error
+        ;;
+    esac
+done
+
+if [ -z "${artifact_name}" ]; then
+    echo "Error: Artifact name not specified. Aborting."
+    show_help_and_exit_error
+else
+    software_name="${module_name}.${artifact_name}"
+fi
+
+if [ -z "${artifact_version}" ]; then
+    echo "Warning: Artifact version not specified. The software version of the artifact will be removed."
+    # remove installed software version information
+    software_version_args="--no-default-software-version --clears-provides ${software_filesystem}.${software_name}.* "
+else
+    software_version_args="--software-version ${artifact_version}"
+fi
+
+if [ -z "${device_type_args}" ]; then
+    echo "Error: Device type not specified. Aborting."
+    show_help_and_exit_error
+fi
+
+if [ ! -d "${output_dir}" ]; then
+    echo "Error: Invalid output directory. Aborting."
+    show_help_and_exit_error
+fi
+
+if [ ! -f "${custom_script}" ]; then
+    echo "Error: Custom script not specified. Aborting."
+    show_help_and_exit_error
+else
+    tmp_dir="$(mktemp -d)"
+    custom_script_tmp="${tmp_dir}/${custom_script_name}"
+    cp -a ${custom_script} ${custom_script_tmp}
+    file_args="${file_args} -f ${custom_script_tmp} "
+fi
+
+if [ -n "${contents_dir}" ]; then
+    if [ -d "${contents_dir}" ]; then
+        tar --same-owner -zcpf ${contents_tgz} -C "${contents_dir}" .
+        file_args="${file_args} -f ${contents_tgz} "
+    else
+        echo "Error: \"${contents_dir}\" is not a directory or does not exit. Aborting."
+        exit 1
+    fi
+fi
+
+if [ -z "${artifact_version}" ]; then
+    artifact_name_with_version="${artifact_name}"
+    output_path="${output_dir}/${artifact_name}.mender"
+else
+    artifact_name_with_version="${artifact_name}_${artifact_version}"
+    output_path="${output_dir}/${artifact_name}_${artifact_version}.mender"
+fi
+
+mender-artifact write module-image \
+    -n ${artifact_name_with_version} \
+    ${device_type_args} \
+    -T ${module_name} \
+    ${file_args} \
+    -o ${output_path} \
+    --software-name ${software_name} \
+    ${software_version_args} \
+    --software-filesystem ${software_filesystem} \
+    ${passthrough_args}
+
+rm ${contents_tgz} >/dev/null 2>&1 || true
+rm -rf ${tmp_dir} >/dev/null 2>&1 || true
+
+mender-artifact read ${output_path}
+echo ""
+echo "Artifact \"${output_path}\" generated successfully"
+
+exit 0

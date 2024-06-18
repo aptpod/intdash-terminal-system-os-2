@@ -1,0 +1,2 @@
+ARTIFACT_NAME="terminal-display-updater"
+ARTIFACT_VERSION="$TS_CONFIGS_VERSION"
