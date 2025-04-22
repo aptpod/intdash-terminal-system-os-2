@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
     # Yocto - Required Packages for the Build Host
     # https://docs.yoctoproject.org/ref-manual/system-requirements.html#ubuntu-and-debian
     gawk wget git diffstat unzip texinfo gcc build-essential chrpath socat cpio python3 python3-pip python3-pexpect xz-utils debianutils iputils-ping python3-git python3-jinja2 libegl1-mesa libsdl1.2-dev python3-pytest-pylint xterm python3-subunit mesa-common-dev zstd liblz4-tool \
+    tmux \
     # poky
     make sudo file locales \
     # develop tool
@@ -19,9 +20,14 @@ RUN apt-get update && apt-get install -y \
     rm -rf /var/lib/apt/lists/*
 
 # install mender-tools
-RUN wget -qP /usr/local/bin https://downloads.mender.io/mender-artifact/3.10.2/linux/mender-artifact
-RUN wget -qP /usr/local/bin https://downloads.mender.io/mender-cli/1.11.1/linux/mender-cli
+RUN wget -qP /usr/local/bin https://downloads.mender.io/mender-artifact/3.11.3/linux/mender-artifact
+RUN wget -qP /usr/local/bin https://downloads.mender.io/mender-cli/1.12.0/linux/mender-cli
 RUN chmod +x /usr/local/bin/mender-*
+
+# install yq
+ENV YQ_VERSION v4.44.6
+RUN wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64
+RUN chmod +x /usr/local/bin/yq
 
 # set locale
 RUN locale-gen en_US.UTF-8

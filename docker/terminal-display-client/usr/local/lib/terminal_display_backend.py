@@ -278,6 +278,8 @@ class TerminalDisplayBackend:
                 * /agent/device_connectors_downstream/-/state
             * service_id の substitution_variables
                 * /device_connector_services
+            * 診断結果
+                * /diagnostics
 
         bool
             OK
@@ -303,6 +305,11 @@ class TerminalDisplayBackend:
             return {}, False
         dc_services = resp.json()
 
+        resp = self.api_client.list_diagnostics()
+        if resp.status_code != 200:
+            return {}, False
+        diagnostics = resp.json()
+
         for dc in dcs:
             up_ipc_ids = dc["upstream_ipc_ids"]
             down_ipc_ids = dc["downstream_ipc_ids"]
@@ -321,6 +328,15 @@ class TerminalDisplayBackend:
                 d for d in dc_services if d["service_id"] == dc["service_id"]
             ][0]
             dc["substitution_variables"] = dc_service["substitution_variables"]
+
+            for diagnostic in diagnostics:
+                id = diagnostic["id"]
+                if id == "measurement-" + dc["id"] + "-1":
+                    pattern = fr"ERROR \[{re.escape(id)}\]: (.+)"
+                    match = re.search(pattern, diagnostic["description"])
+                    if match:
+                        dc["diagnostic"] = match.group(1)
+                    break
 
         return dcs, True
 
@@ -387,27 +403,24 @@ class TerminalDisplayBackend:
                 return {}, False
             metrics = resp.json()
 
-            gpx_fix_ubx = (
-                metrics.get("gps", {})
-                .get("UBX-HNR-PVT", {})
-                .get("gpsFix", {})
-                .get("value")
-            )
-            quality_ubx = qualities_ubx.get(gpx_fix_ubx)
+            gps = metrics.get("gps", {})
+            if gps:
+                gpx_fix_ubx = gps.get("UBX-NAV-STATUS", {}).get("gpsFix", {}).get("value")
+                quality_ubx = qualities_ubx.get(gpx_fix_ubx)
 
-            gps_fix_nmea = metrics.get("gps", {}).get("nmea", {}).get("fix")
-            quality_nmea = qualities_nmea.get(gps_fix_nmea)
+                gps_fix_nmea = gps.get("nmea", {}).get("fix")
+                quality_nmea = qualities_nmea.get(gps_fix_nmea)
 
-            if quality_ubx and quality_nmea:
-                quality = (
-                    quality_ubx
-                    if quality_ubx["priority"] < quality_nmea["priority"]
-                    else quality_nmea
-                )
-            elif quality_ubx:
-                quality = quality_ubx
-            elif quality_nmea:
-                quality = quality_nmea
+                if quality_ubx and quality_nmea:
+                    quality = (
+                        quality_ubx
+                        if quality_ubx["priority"] < quality_nmea["priority"]
+                        else quality_nmea
+                    )
+                elif quality_ubx:
+                    quality = quality_ubx
+                elif quality_nmea:
+                    quality = quality_nmea
 
         return {
             "state": state,
@@ -560,7 +573,7 @@ class TerminalDisplayBackend:
     def _get_carrier(self, metrics):
         carrier = "none"
         mmcli = metrics.get("mmcli", {})
-        if len(mmcli) > 0:
+        if mmcli:
             operator_name = (
                 mmcli[0].get("sim", {}).get("properties", {}).get("operator-name")
             )
@@ -570,7 +583,7 @@ class TerminalDisplayBackend:
     def _get_rssi(self, metrics):
         rssi = 0
         mmcli = metrics.get("mmcli", {})
-        if len(mmcli) > 0:
+        if mmcli:
             rssi = mmcli[0].get("signal", {}).get("lte", {}).get("rssi")
             try:
                 rssi = int(float(rssi))
@@ -581,7 +594,7 @@ class TerminalDisplayBackend:
     def _get_mode(self, metrics):
         mode = "none"
         mmcli = metrics.get("mmcli", {})
-        if len(mmcli) > 0:
+        if mmcli:
             current_modes = mmcli[0].get("generic", {}).get("current-modes")
             if current_modes:
                 match = re.search(r"preferred:\s*(\w+)", str(current_modes))
@@ -629,7 +642,7 @@ class TerminalDisplayBackend:
 
         resp = self.api_client.get_terminal_system_metrics()
         if resp.status_code != 200:
-            return 0
+            return {}, False
         metrics = resp.json()
 
         carrier = self._get_carrier(metrics)
@@ -964,6 +977,15 @@ class TerminalSystemAPIClient:
 
     def list_device_connector_services(self):
         return requests.get(self.base_url + "/device_connector_services")
+
+    def list_diagnostics(self):
+        return requests.get(
+            self.base_url
+            + "/diagnostics?filters="
+            + urllib.parse.quote(
+                '{"category":["alert"],"resolved":[false],"created_by":["docker_container_error"]}'
+            )
+        )
 
     def list_events(self):
         return requests.get(self.base_url + "/events")

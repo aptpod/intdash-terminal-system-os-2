@@ -1,6 +1,10 @@
 #!/bin/bash -e
 
 readonly THIS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+readonly TAG_REPOS=" \
+    poky \
+    meta-mender \
+"
 
 function help() {
     cat <<EOF
@@ -47,8 +51,8 @@ function print_repo_commit() {
             continue
         fi
 
-        # For poky, get the latest tag for the codename
-        if [ "$name" = "poky" ]; then
+        # For TAG_REPOS, get the latest tag for the codename
+        if [[ " $TAG_REPOS " =~ " $name " ]]; then
             search_refs="${refs%%-*}-*"
         else
             search_refs="$refs"

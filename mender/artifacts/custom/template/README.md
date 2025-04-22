@@ -23,7 +23,7 @@ This file contains basic information about the artifact.
 | Variable | Description | Example |
 | --- | --- | --- |
 | ARTIFACT_NAME | Name of the artifact | `sample` |
-| DEVICE_TYPES | Array of supported devices (The default value is all devices) | `("edgeplant-t1" "raspberrypi4-64")` |
+| DEVICE_TYPES | Array of supported devices (The default value is all devices) | `("edgeplant-r1" "edgeplant-t1" "raspberrypi4-64" "vtc1920")` |
 | ARTIFACT_VERSION | Version of the artifact (leave blank to omit version information) | `1.0.0` |
 | SOFTWARE_FILESYSTEM | File system destination for the artifact installation (comment out if installing to the data partition; the version will be maintained through OS updates) | `data-partition` |
 
@@ -49,3 +49,9 @@ Each function within the script is called based on the various states of the upd
 ### Metadata (`metadata.json`)
 
 This file should contain the metadata to be included in the artifact, formatted in JSON.
+
+By default, the metadata will include the `custom_artifact_type` field.
+The value of this field is set to `operation` if `ARTIFACT_VERSION` is an empty string, and `software` if `ARTIFACT_VERSION` is not empty.
+This `custom_artifact_type` is used in the Device Management Console to categorize and list releases under other operations.
+
+If `custom_artifact_type` is explicitly defined in the `metadata.json` file, it will override the default setting.

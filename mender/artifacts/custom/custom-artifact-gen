@@ -44,6 +44,10 @@ if ! check_dependency mender-artifact; then
     exit 1
 fi
 
+if ! check_dependency jq; then
+    exit 1
+fi
+
 readonly module_name="custom"
 readonly custom_script_name="custom_script.sh"
 artifact_name=""
@@ -186,6 +190,26 @@ else
     output_path="${output_dir}/${artifact_name}_${artifact_version}.mender"
 fi
 
+# apend 'custom_artifact_type' meta-data
+if [[ "${passthrough_args}" =~ "--meta-data" ]]; then
+    meta_data_file="$(echo ${passthrough_args} | sed -n 's/.*--meta-data \([^ ]*\).*/\1/p')"
+    if jq -e '.custom_artifact_type' ${meta_data_file} >/dev/null 2>&1; then
+        echo "Warning: custom_artifact_type is already set in the meta-data file. Skipping."
+    else
+        if [ -z "${artifact_version}" ]; then
+            custom_artifact_type="operation"
+        else
+            custom_artifact_type="software"
+        fi
+        meta_data_tmp=$(mktemp)
+        cp -a ${meta_data_file} ${meta_data_tmp}
+        jq ".custom_artifact_type = \"${custom_artifact_type}\"" ${meta_data_file} >${meta_data_tmp}
+
+        passthrough_args=$(echo ${passthrough_args} | sed -e 's/--meta-data [^ ]*//')
+        passthrough_args="${passthrough_args} --meta-data ${meta_data_tmp}"
+    fi
+fi
+
 mender-artifact write module-image \
     -n ${artifact_name_with_version} \
     ${device_type_args} \
@@ -197,6 +221,7 @@ mender-artifact write module-image \
     --software-filesystem ${software_filesystem} \
     ${passthrough_args}
 
+rm -f ${meta_data_tmp} >/dev/null 2>&1 || true
 rm ${contents_tgz} >/dev/null 2>&1 || true
 rm -rf ${tmp_dir} >/dev/null 2>&1 || true
 

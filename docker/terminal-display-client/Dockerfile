@@ -1,4 +1,4 @@
-FROM python:3.11.2-slim
+FROM python:3.11.8-slim
 
 RUN pip install --upgrade pip \
     && pip install --no-cache-dir \

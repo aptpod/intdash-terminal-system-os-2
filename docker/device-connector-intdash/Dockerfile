@@ -19,9 +19,13 @@ ARG TS_INSTALL_PACKAGES_DEVICE_CONNECTOR
 SHELL ["/bin/bash", "-c"]
 ARG DEBIAN_FRONTEND=noninteractive
 COPY device-connector-*.deb /tmp/
+COPY dc-*.deb /tmp/
+COPY libdc-*.deb /tmp/
 RUN apt-get update && apt-get install -y \
     /tmp/device-connector-intdash_*_all.deb \
     /tmp/device-connector-*${TARGETARCH}${TARGETVARIANT/v7/hf}.deb \
+    /tmp/dc-*${TARGETARCH}${TARGETVARIANT/v7/hf}.deb \
+    /tmp/libdc-*${TARGETARCH}${TARGETVARIANT/v7/hf}.deb \
     $(echo "${TS_INSTALL_PACKAGES_DEVICE_CONNECTOR}" | sed 's/,/ /g') \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 RUN rm -rf /tmp/*

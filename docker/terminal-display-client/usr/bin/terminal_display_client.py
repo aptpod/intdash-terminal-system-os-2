@@ -132,9 +132,16 @@ class ApiResponse:
 
     def update(self):
         for endpoint in self._endpoint_list:
-            self._responses[endpoint], success = self._backend.get(endpoint)
-            if not success:
-                self._responses[endpoint] = {}
+            try:
+                self._responses[endpoint], success = self._backend.get(endpoint)
+                if not success:
+                    self._responses[endpoint] = {}
+                    logging.error(f"can't get {endpoint} response")
+            except Exception as e:
+                logging.error(f"can't get {endpoint} response: {str(e)}")
+                exit()
+            # Insert a short sleep to avoid high load
+            time.sleep(0.1)
 
     def connection(self):
         return self._responses.get("connection")
@@ -229,6 +236,7 @@ class TerminalDisplayClient:
         self._beep_flag_deferred_uploading = False
         self._beep_flag_deferred_upload_complete = False
         self._queue_state = QueueState.NOT_INITIALIZED
+        self._screen_update_interval = 5
 
         self._th_list = list()
         th = threading.Thread(target=self._recv_thread, daemon=True)
@@ -266,7 +274,10 @@ class TerminalDisplayClient:
     def _ping_thread(self):
         logging.info("Start ping_thread()")
         while True:
-            self._cmd_sender.ping()
+            try:
+                self._cmd_sender.ping()
+            except Exception as e:
+                logging.error("can't send ping: " + str(e))
             # Timeout is 10 seconds
             time.sleep(5)
 
@@ -927,6 +938,9 @@ class TerminalDisplayClient:
         send_interval = self._get_substitution_string(
             service_substitutions, substitution_variables, "DC_SEND_INTERVAL"
         )
+        sampling_frequency = self._get_substitution_string(
+            service_substitutions, substitution_variables, "DC_SAMPLING_FREQUENCY"
+        )
 
         # NOTE: Currently, service identification is not implemented
         # so that it can be used for device connector services that will be added in the future.
@@ -1021,6 +1035,12 @@ class TerminalDisplayClient:
                 widget.PageItem("SendInterval", send_interval)
             )
 
+        # IIO
+        if sampling_frequency:
+            service_specific_page_items.append(
+                widget.PageItem("SamplingFreq", sampling_frequency)
+            )
+
         return service_specific_page_items
 
     def _collect_device_connector_page_contents(self, api_response: ApiResponse):
@@ -1033,6 +1053,7 @@ class TerminalDisplayClient:
             service_id = dc.get("service_id")
             service_substitutions = dc.get("service_substitutions")
             substitution_variables = dc.get("substitution_variables")
+            diagnostic = dc.get("diagnostic")
 
             title = f"Device Connector {id}"
             page = widget.Page(widget.PageOptions(title))
@@ -1061,6 +1082,10 @@ class TerminalDisplayClient:
             for page_item in self._collect_service_specific_page_items(
                 service_id, service_substitutions, substitution_variables
             ):
+                page_items.append(page_item)
+
+            if diagnostic:
+                page_item = widget.PageItem.create_diagnostic_page_item(diagnostic)
                 page_items.append(page_item)
 
             dc_page_contents.append((page, page_items))
@@ -1190,6 +1215,8 @@ class TerminalDisplayClient:
             list_screen.delete_unupdated_page_items()
 
             self._set_beep_flags(main_screen_content, list_screen)
+
+            time.sleep(self._screen_update_interval)
 
     def _recv_thread(self):
         config = self._config

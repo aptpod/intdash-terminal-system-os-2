@@ -134,10 +134,16 @@ class PageItem:
     value: str
     color: ListScreenValueColorEnum = ListScreenValueColorEnum.GREEN
     error_msg: str = ""
+    hidden: bool = False
+
+    DIAGNOSTIC_KEY: str = "Diagnostic"
 
     def is_error(self):
         return self.color == ListScreenValueColorEnum.RED
 
+    @classmethod
+    def create_diagnostic_page_item(cls, diagnostic: str) -> 'PageItem':
+        return cls(key=cls.DIAGNOSTIC_KEY, value="alert", color=ListScreenValueColorEnum.RED, error_msg=diagnostic, hidden=True)
 
 @dataclass
 class PageItems:
@@ -233,7 +239,10 @@ class Page:
         if item.is_error():
             if not self.error_reported_flags.get(item.key):
                 if item.error_msg:
-                    error_msg = item.error_msg
+                    if item.key != PageItem.DIAGNOSTIC_KEY:
+                        error_msg = item.error_msg
+                    else:
+                        error_msg = f"{self._options.title}: {item.error_msg}"
                 else:
                     error_msg = f"{self._options.title}: {item.key} = {item.value}"
 
@@ -253,9 +262,10 @@ class Page:
         logging.debug(f"UPDATE {self._options.title} page = {page_items}")
         cmd_send.edit_page(self._options.index)
         for item in page_items:
-            cmd_send.set_key(
-                self._options.index, item.key, item.value, item.color.value
-            )
+            if item.hidden is not True:
+                cmd_send.set_key(
+                    self._options.index, item.key, item.value, item.color.value
+                )
             self._check_error_report(cmd_send, item)
         cmd_send.edit_end(self._options.index)
 

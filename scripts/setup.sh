@@ -128,8 +128,9 @@ function copy_configs() {
     local -r local_config_inc="$CONFIGS_DIR/$TARGET/local.conf.inc"
     local -r bblayers_config="$CONFIGS_DIR/all/bblayers.conf"
     local -r bblayers_config_inc="$CONFIGS_DIR/$TARGET/bblayers.conf.inc"
+    local -r target_cve_config="$CONFIGS_DIR/$TARGET/cve.conf"
 
-    cat $local_config $local_config_inc > "$POKY_DIR/build/conf/local.conf"
+    cat $local_config $local_config_inc $target_cve_config > "$POKY_DIR/build/conf/local.conf"
     cat $bblayers_config $bblayers_config_inc > "$POKY_DIR/build/conf/bblayers.conf"
 }
 
@@ -359,11 +360,9 @@ function setup_environments() {
     local -r version_config="$VERSION_CONF"
     local -r all_environments_config="$CONFIGS_DIR/all/environments.conf"
     local -r target_environments_config="$CONFIGS_DIR/$TARGET/environments.conf"
-    local -r target_cve_config="$CONFIGS_DIR/$TARGET/cve.conf"
     setup_environments_config $version_config
     setup_environments_config $all_environments_config
     setup_environments_config $target_environments_config
-    setup_environments_config $target_cve_config
 }
 
 SHORT=t:,e,h

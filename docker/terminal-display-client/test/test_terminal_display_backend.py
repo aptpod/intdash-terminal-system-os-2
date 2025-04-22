@@ -37,6 +37,9 @@ class MockTerminalSystemAPIClient:
     def list_device_connector_services(self):
         return self.__responses["list_device_connector_services"]
 
+    def list_diagnostics(self):
+        return self.__responses["list_diagnostics"]
+
     def list_events(self):
         return self.__responses["list_events"]
 
@@ -314,6 +317,29 @@ class TestTerminalDisplayBackend(unittest.TestCase):
                         ]
                         """,
                     ),
+                    "list_diagnostics": self.__new_response(
+                        200,
+                        """
+                        [
+                            {
+                                "id": "measurement-can-1",
+                                "description": "ERROR [measurement-can-1]: element apt-cantrx-src new failed: ENOENT: No such file or directory",
+                                "category": "alert",
+                                "resolved": false,
+                                "created_by": "docker_container_error",
+                                "created_at": "2025-01-13T02:01:16Z"
+                            },
+                            {
+                                "id": "measurement-gps-1",
+                                "description": "invalid prefix diagnostic log. this must be ignored",
+                                "category": "alert",
+                                "resolved": false,
+                                "created_by": "docker_container_error",
+                                "created_at": "2025-01-13T02:01:16Z"
+                            }
+                        ]
+                        """,
+                    ),
                 },
                 "expect": (
                     [
@@ -329,6 +355,7 @@ class TestTerminalDisplayBackend(unittest.TestCase):
                             "upstream_ipc_state": "connected",
                             "downstream_ipc_state": "disconnected",
                             "substitution_variables": [{"key": "DC_DEVICE_PATH"}],
+                            "diagnostic": "element apt-cantrx-src new failed: ENOENT: No such file or directory"
                         },
                         {
                             "id": "gps",
@@ -387,6 +414,21 @@ class TestTerminalDisplayBackend(unittest.TestCase):
                             {
                                 "service_id": "2UP-2DOWN",
                                 "substitution_variables": []
+                            }
+                        ]
+                        """,
+                    ),
+                    "list_diagnostics": self.__new_response(
+                        200,
+                        """
+                        [
+                            {
+                                "id": "ignored-2up-2down-1",
+                                "description": "ERROR [ignored-2up-2down-1]: ignored",
+                                "category": "alert",
+                                "resolved": false,
+                                "created_by": "docker_container_error",
+                                "created_at": "2025-01-13T02:01:16Z"
                             }
                         ]
                         """,
