@@ -177,6 +177,12 @@ class MainScreenContent:
     def append(self, icon: MainScreenIcon):
         self.icons.append(icon)
 
+    def find_by_type(self, type: MainScreenIconType):
+        for icon in self.icons:
+            if icon.type == type:
+                return icon
+        return None
+
 
 class MainScreen:
     def __init__(self, cmd_send: cmd.CommandSender):

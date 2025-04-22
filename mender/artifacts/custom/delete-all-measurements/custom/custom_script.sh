@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -eo pipefail
 
 readonly STATE="$1"
 readonly CUSTOM_CONTENTS_DIR="$2"

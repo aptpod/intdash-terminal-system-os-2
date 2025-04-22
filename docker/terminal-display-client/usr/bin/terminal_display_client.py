@@ -13,6 +13,7 @@ import logging
 from distutils.util import strtobool
 import os
 import atexit
+import ipaddress
 
 import terminal_display_backend as bk
 from terminal_display_command import *
@@ -593,8 +594,14 @@ class TerminalDisplayClient:
             ip_address = device.get("ip_address")
             ip_address_error_msg = ""
             if ip_address:
+                try:
+                    ip_obj = ipaddress.ip_address(ip_address)
+                    is_link_local = ip_obj.is_link_local
+                except ValueError:
+                    is_link_local = False
+
                 gateway = device.get("gateway")
-                if gateway:
+                if gateway or connection_type == "wireless_access_point" or is_link_local:
                     ip_address_color = widget.ListScreenValueColorEnum.GREEN
                 else:
                     ip_address_color = widget.ListScreenValueColorEnum.RED
@@ -1114,20 +1121,20 @@ class TerminalDisplayClient:
         if list_screen.is_error():
             self._beep_flag_error = True
 
-        for icon in main_screen_content:
-            if icon.type == widget.MainScreenIconType.MODE:
-                if icon.value == widget.MainScreenIconValueMode.RECOVER_ON:
-                    self._beep_flag_deferred_uploading = True
-                else:
-                    self._beep_flag_deferred_uploading = False
+        mode_icon = main_screen_content.find_by_type(widget.MainScreenIconType.MODE)
+        if mode_icon.value == widget.MainScreenIconValueMode.RECOVER_ON:
+            self._beep_flag_deferred_uploading = True
+        else:
+            self._beep_flag_deferred_uploading = False
 
-            if icon.type == widget.MainScreenIconType.QUEUE:
-                if icon.value == widget.MainScreenIconValueQueue.SIZE_0B:
-                    if self._queue_state == QueueState.SOME:
-                        self._beep_flag_deferred_upload_complete = True
-                        self._queue_state = QueueState.EMPTY
-                elif icon.value != widget.MainScreenIconValueQueue.NONE:
-                    self._queue_state = QueueState.SOME
+        queue_icon = main_screen_content.find_by_type(widget.MainScreenIconType.QUEUE)
+        if queue_icon.value == widget.MainScreenIconValueQueue.SIZE_0B:
+            if self._queue_state == QueueState.SOME:
+                if mode_icon.value != widget.MainScreenIconValueMode.MEASURE_ON:
+                    self._beep_flag_deferred_upload_complete = True
+                self._queue_state = QueueState.EMPTY
+        elif queue_icon.value != widget.MainScreenIconValueQueue.NONE:
+            self._queue_state = QueueState.SOME
 
     def _send_thread(self):
         logging.info("start send_thread()")
