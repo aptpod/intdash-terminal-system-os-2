@@ -6,6 +6,7 @@ FW_PATH=$1
 
 declare -A FW_NAMES=(
     ["EP1-CH02A"]="EP1-CH02A"
+    ["EP1-CF02A"]="EP1-CF02A"
     ["EP1-AG08A"]="EP1-AG08A"
 )
 

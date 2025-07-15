@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
 
 FROM ${TS_BASE_IMAGE_DEVICE_CONNECTOR}
 COPY --from=build /usr/local/bin/apt_usbtrx* /usr/bin/
+COPY --from=build /usr/local/bin/ep1_cf02a* /usr/bin/
 
 ARG TARGETARCH
 ARG TARGETVARIANT
