@@ -53,7 +53,12 @@ RUN mkdir ~/.ssh && \
 
 # install docker (rootless mode)
 ENV DOCKER_VERSION 25.0.3
-RUN cd $HOME && curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh --version ${DOCKER_VERSION}
+# WORKAROUND: The docker-model-plugin package has been removed from the repository,
+# and the script will no longer work as is. As a temporary measure,
+# we will remove the docker-model-plugin from the installation targets.
+RUN cd $HOME && curl -fsSL https://get.docker.com -o get-docker.sh && \
+    sed -i 's/docker-model-plugin//g' get-docker.sh && \
+    sudo sh get-docker.sh --version ${DOCKER_VERSION}
 RUN echo "export XDG_RUNTIME_DIR=/home/$USERNAME/.docker/run" >> $HOME/.bashrc && \
     echo "export PATH=/usr/bin:$PATH" >> ~/.bashrc && \
     echo "export DOCKER_HOST=unix:///home/$USERNAME/.docker/run/docker.sock" >> ~/.bashrc
