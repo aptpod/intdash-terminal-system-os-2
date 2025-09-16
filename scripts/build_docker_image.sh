@@ -124,7 +124,18 @@ function build_docker_image() {
         fi
         echo "Build docker image \"$IMAGE_NAME\" $TARGET_DESCRIPTION"
 
-        docker buildx build $BUILD_ARGS --platform ${IMAGE_PLATFORM} .
+        # Retry docker buildx build up to 10 times
+        for i in {1..10}; do
+            if docker buildx build $BUILD_ARGS --platform ${IMAGE_PLATFORM} .; then
+                break
+            elif [ $i -lt 10 ]; then
+                echo "Docker build failed, retrying... ($i/10)"
+                sleep 10
+            else
+                echo "Docker build failed after 10 attempts"
+                exit 1
+            fi
+        done
 
         echo "Successfully built docker image \"$IMAGE_NAME\" $TARGET_DESCRIPTION"
         echo ""
