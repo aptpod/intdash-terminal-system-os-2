@@ -722,12 +722,26 @@ class TerminalDisplayBackend:
 
         top = metrics.get("top")
         if top:
-            cpu_usage = round(100.0 - (top[0]["cpu_idle"] + top[0]["cpu_wait"]), 2)
-            load_average = round(top[0]["load_1m"], 2)
-            disk_total = metrics["data_partition"]["total"]
-            disk_used = round(disk_total - metrics["data_partition"]["available"])
-            memory_total = round(top[0]["mem_total"])
-            memory_used = round(top[0]["mem_used"])
+            top_data = top[0] if top else {}
+            cpu_idle = top_data.get("cpu_idle")
+            cpu_wait = top_data.get("cpu_wait")
+            load_1m = top_data.get("load_1m")
+            mem_total = top_data.get("mem_total")
+            mem_used = top_data.get("mem_used")
+            if None in (cpu_idle, cpu_wait, load_1m, mem_total, mem_used):
+                return {}, False
+            cpu_usage = round(100.0 - (cpu_idle + cpu_wait), 2)
+            load_average = round(load_1m, 2)
+            data_partition = metrics.get("data_partition", {})
+            disk_total = data_partition.get("total")
+            disk_available = data_partition.get("available")
+            if disk_total is not None and disk_available is not None:
+                disk_used = round(disk_total - disk_available)
+            else:
+                disk_total = None
+                disk_used = None
+            memory_total = round(mem_total)
+            memory_used = round(mem_used)
         else:
             return {}, False
 
