@@ -47,10 +47,8 @@ GPIO_SHUTDOWN_PIN = "25"
 # HDMI
 HDMI_FORCE_HOTPLUG = "1"
 # Raspberry Pi Camera Module
-VIDEO_CAMERA = "1"
+# camera_auto_detect=1 is set in meta-terminal-system
 GPU_MEM = "128"
-RASPBERRYPI_CAMERA_V2 = "1"
-RASPBERRYPI_CAMERA_V3 = "1"
 # https://meta-raspberrypi.readthedocs.io/en/latest/ipcompliance.html#linux-firmware-rpidistro
 LICENSE_FLAGS_ACCEPTED:append = "synaptics-killswitch"
 

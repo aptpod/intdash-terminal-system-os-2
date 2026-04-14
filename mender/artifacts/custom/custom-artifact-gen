@@ -168,13 +168,13 @@ if [ ! -f "${custom_script}" ]; then
 else
     tmp_dir="$(mktemp -d)"
     custom_script_tmp="${tmp_dir}/${custom_script_name}"
-    cp -a ${custom_script} ${custom_script_tmp}
+    cp ${custom_script} ${custom_script_tmp}
     file_args="${file_args} -f ${custom_script_tmp} "
 fi
 
 if [ -n "${contents_dir}" ]; then
     if [ -d "${contents_dir}" ]; then
-        tar --same-owner -zcpf ${contents_tgz} -C "${contents_dir}" .
+        tar -zcpf ${contents_tgz} -C "${contents_dir}" .
         file_args="${file_args} -f ${contents_tgz} "
     else
         echo "Error: \"${contents_dir}\" is not a directory or does not exit. Aborting."
@@ -202,7 +202,6 @@ if [[ "${passthrough_args}" =~ "--meta-data" ]]; then
             custom_artifact_type="software"
         fi
         meta_data_tmp=$(mktemp)
-        cp -a ${meta_data_file} ${meta_data_tmp}
         jq ".custom_artifact_type = \"${custom_artifact_type}\"" ${meta_data_file} >${meta_data_tmp}
 
         passthrough_args=$(echo ${passthrough_args} | sed -e 's/--meta-data [^ ]*//')

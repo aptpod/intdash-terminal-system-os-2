@@ -15,6 +15,7 @@ readonly BUILD_OPT_ENVS=(
     "TS_AWS_CREDS_DEF_ACCESS_KEY_ID"
     "TS_AWS_CREDS_DEF_SECRET_ACCESS_KEY"
     "TS_AWS_ECR_BASE_URI"
+    "NVDCVE_API_KEY"
 )
 
 function help() {
@@ -128,9 +129,10 @@ function copy_configs() {
     local -r local_config_inc="$CONFIGS_DIR/$TARGET/local.conf.inc"
     local -r bblayers_config="$CONFIGS_DIR/all/bblayers.conf"
     local -r bblayers_config_inc="$CONFIGS_DIR/$TARGET/bblayers.conf.inc"
+    local -r all_cve_config="$CONFIGS_DIR/all/cve.conf"
     local -r target_cve_config="$CONFIGS_DIR/$TARGET/cve.conf"
 
-    cat $local_config $local_config_inc $target_cve_config > "$POKY_DIR/build/conf/local.conf"
+    cat $local_config $local_config_inc $all_cve_config $target_cve_config > "$POKY_DIR/build/conf/local.conf"
     cat $bblayers_config $bblayers_config_inc > "$POKY_DIR/build/conf/bblayers.conf"
 }
 
