@@ -1,0 +1,39 @@
+# libaom3: AV1コーデックのフレームサイズ変更時ヒープバッファオーバーフロー
+# GStreamer推奨パッケージの間接依存。本デバイスはAV1コーデック非対応のため使用しない
+CVE-2023-6879
+
+# libopenexr: OpenEXR Scanline Deep Data解析時ヒープオーバーフロー
+# GStreamer推奨パッケージの間接依存。device-connector-intdashの製品機能としてOpenEXRを使用しない
+CVE-2023-5841
+
+# imagemagick: GStreamer推奨パッケージの間接依存。device-connector-intdashの製品機能としてImageMagickを使用しない
+CVE-2026-25897
+CVE-2026-25898
+CVE-2026-25968
+CVE-2026-25971
+CVE-2026-25983
+CVE-2026-25986
+CVE-2026-25987
+CVE-2026-23876
+CVE-2026-26284
+
+# libnss3: 整数オーバーフロー。DCはTLSにOpenSSLを使用しており、NSSの暗号処理機能を直接使用しない
+CVE-2026-2781
+
+# libsqlite3-0: 集約関数の項数超過によるメモリ破壊
+# 外部SQL入力なし。zabbix-agent2等の内部DB用途のみ
+CVE-2025-6965
+CVE-2025-7458
+
+# openssl: CMS AuthEnvelopedData解析時のオーバーフロー。DCはCMS APIを使用しない
+CVE-2025-15467
+
+# zlib1g: minizip の整数オーバーフロー。zlibコア無関係。Debian will_not_fix
+CVE-2023-45853
+
+# zabbix-agent2: 悪意のあるZabbixサーバーからのレスポンスによる任意コード実行
+# Server=127.0.0.1 のみで外部サーバーとの通信なし。攻撃経路なし
+CVE-2023-32728
+
+# zabbix: Zabbix Server側のSMS通知ATコマンドインジェクション。Agent側は非該当
+CVE-2024-22122

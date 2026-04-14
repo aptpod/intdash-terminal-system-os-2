@@ -14,6 +14,7 @@ Options:
   -h, --help      Print this help and exit
 
 Optional Variables:
+  CONTAINER_NAME    Docker container name
   DL_DIR            Download Directory (default: "$(dirname $THIS_DIR)/downloads")
   SSTATE_CACHE_DIR  Sahred state cache Directory (default: "$(dirname $THIS_DIR)/sstate-cache")
   TS_CONFIGS_DIR    Configs Directory (default: "$(dirname $THIS_DIR)/$TS_CONFIGD_DIR_DEFAULT")
@@ -71,9 +72,16 @@ if [ "$(realpath "$TS_CONFIGS_DIR")" != "$(realpath "$TS_CONFIGD_DIR_DEFAULT")" 
     MOUNT_OPTS="$MOUNT_OPTS --mount type=bind,source=$TS_CONFIGS_DIR,target=/home/builder/work/$TS_CONFIGD_DIR_DEFAULT"
 fi
 
+# container name
+NAME_OPT=""
+if [ -n "$CONTAINER_NAME" ]; then
+    NAME_OPT="--name $CONTAINER_NAME"
+fi
+
 # launch
 docker pull $IMAGE
 docker run --rm -it \
+    $NAME_OPT \
     --volume $SSH_AUTH_SOCK:/ssh-agent --env SSH_AUTH_SOCK=/ssh-agent \
     $MOUNT_OPTS \
     --shm-size=1gb \

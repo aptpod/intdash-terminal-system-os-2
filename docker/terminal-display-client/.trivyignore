@@ -1,0 +1,19 @@
+# libdb5.3: SQLite rtreenode()のヒープ境界外読み取り
+# libdb5.3の内部SQLiteであり、terminal-display-clientはR-Tree拡張を使用しない。Debian will_not_fix
+CVE-2019-8457
+
+# libexpat1: XMLパーサーの整数オーバーフロー
+# terminal-display-clientは外部XMLを処理しない（内部REST API経由でJSONのみ受信）
+CVE-2024-45491
+CVE-2024-45492
+
+# krb5: GSSメッセージトークンの処理不備
+# Terminal SystemはKerberos認証を使用しない
+CVE-2024-37371
+
+# libsqlite3-0: 集約関数の項数超過によるメモリ破壊
+# terminal-display-clientはSQLiteを使用しない
+CVE-2025-6965
+
+# zlib1g: minizip の整数オーバーフロー。zlibコア無関係。Debian will_not_fix
+CVE-2023-45853
