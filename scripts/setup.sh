@@ -132,7 +132,14 @@ function copy_configs() {
     local -r all_cve_config="$CONFIGS_DIR/all/cve.conf"
     local -r target_cve_config="$CONFIGS_DIR/$TARGET/cve.conf"
 
-    cat $local_config $local_config_inc $all_cve_config $target_cve_config > "$POKY_DIR/build/conf/local.conf"
+    # cve.conf is kept private and may be absent on the public mirror.
+    cat $local_config $local_config_inc > "$POKY_DIR/build/conf/local.conf"
+    if [ -f "$all_cve_config" ]; then
+        cat "$all_cve_config" >> "$POKY_DIR/build/conf/local.conf"
+    fi
+    if [ -f "$target_cve_config" ]; then
+        cat "$target_cve_config" >> "$POKY_DIR/build/conf/local.conf"
+    fi
     cat $bblayers_config $bblayers_config_inc > "$POKY_DIR/build/conf/bblayers.conf"
 }
 
