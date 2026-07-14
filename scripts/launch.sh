@@ -81,6 +81,7 @@ fi
 # launch
 docker pull $IMAGE
 docker run --rm -it \
+    --init \
     $NAME_OPT \
     --volume $SSH_AUTH_SOCK:/ssh-agent --env SSH_AUTH_SOCK=/ssh-agent \
     $MOUNT_OPTS \
