@@ -32,6 +32,17 @@ def remove_version_file():
         os.remove(FW_VERSION_FILE_PATH)
 
 
+def _safe_thread(target):
+    # Ensure any thread crash terminates the whole process so docker's
+    # restart_policy recovers the container. Daemon threads dying silently
+    # would otherwise leave the container Up but stuck.
+    try:
+        target()
+    except BaseException:
+        logging.exception(f"thread {target.__name__} died, exiting process")
+        os._exit(1)
+
+
 class Backend:
     def __init__(self, base_uri):
         self.api_client = bk.TerminalSystemAPIClient(base_uri)
@@ -238,13 +249,13 @@ class TerminalDisplayClient:
         self._screen_update_interval = 5
 
         self._th_list = list()
-        th = threading.Thread(target=self._recv_thread, daemon=True)
+        th = threading.Thread(target=_safe_thread, args=(self._recv_thread,), daemon=True)
         self._th_list.append(th)
-        th = threading.Thread(target=self._ping_thread, daemon=True)
+        th = threading.Thread(target=_safe_thread, args=(self._ping_thread,), daemon=True)
         self._th_list.append(th)
-        th = threading.Thread(target=self._api_thread, daemon=True)
+        th = threading.Thread(target=_safe_thread, args=(self._api_thread,), daemon=True)
         self._th_list.append(th)
-        th = threading.Thread(target=self._beep_thread, daemon=True)
+        th = threading.Thread(target=_safe_thread, args=(self._beep_thread,), daemon=True)
         self._th_list.append(th)
 
     def _beep_thread(self):
@@ -1314,7 +1325,7 @@ class TerminalDisplayClient:
         for th in self._th_list:
             th.start()
 
-        self._send_thread()
+        _safe_thread(self._send_thread)
 
 
 def main(config_file):

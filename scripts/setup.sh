@@ -16,6 +16,7 @@ readonly BUILD_OPT_ENVS=(
     "TS_AWS_CREDS_DEF_SECRET_ACCESS_KEY"
     "TS_AWS_ECR_BASE_URI"
     "NVDCVE_API_KEY"
+    "TS_CVE_CHECK_EXIT"
 )
 
 function help() {
