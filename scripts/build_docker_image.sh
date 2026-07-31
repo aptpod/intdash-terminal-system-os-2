@@ -68,6 +68,41 @@ function download_package() {
     curl -fsSL -o "$output" -H "$header" $uri
 }
 
+# Sets RESOLVED_HEADER instead of echoing the result: a command substitution would
+# run the exit below in a subshell and let the caller continue.
+function resolve_header() {
+    local header="$1"
+    local -r context="$2"
+
+    RESOLVED_HEADER="$header"
+
+    if [[ "$header" != *'$'* ]] && [[ "$header" != *'`'* ]]; then
+        return
+    fi
+
+    local -r envs=$(echo "$header" | grep -oE '\$\{[A-Za-z_][A-Za-z0-9_]*\}' | tr -d '${}')
+
+    local residue="$header"
+    local env
+    for env in $envs; do
+        residue=${residue//\$\{$env\}/}
+    done
+    if [[ "$residue" == *'$'* ]] || [[ "$residue" == *'`'* ]]; then
+        echo "ERROR: Unsupported notation in the header for \"$context\". Use \${NAME}."
+        exit 1
+    fi
+
+    for env in $envs; do
+        if [ -z "${!env}" ]; then
+            echo "ERROR: Set variables \"$env\" (required by \"$context\")"
+            exit 1
+        fi
+        header=${header//\$\{$env\}/${!env}}
+    done
+
+    RESOLVED_HEADER="$header"
+}
+
 function download_packages() {
     local -r packages_config="$1"
 
@@ -88,13 +123,15 @@ function download_packages() {
             continue
         fi
 
+        resolve_header "$header" "$package"
+
         for arch in $(echo $architectures | tr ',' ' '); do
             # variable expansion
             export DEB_ARCH=$arch
             eval "export uri_expanted=$uri"
             eval "export filename_expanded=$filename"
 
-            download_package $package $uri_expanted $filename_expanded "$header"
+            download_package $package $uri_expanted $filename_expanded "$RESOLVED_HEADER"
         done
 
     done <$packages_config
