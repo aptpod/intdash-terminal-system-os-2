@@ -1105,9 +1105,13 @@ class TerminalDisplayClient:
     def _collect_hardware_info_page_contents(self, api_response: ApiResponse):
         hardware_info_page_contents: widget.PageContents = list()
 
-        hardware_info = api_response.hardware_info()
-        if not hardware_info:
-            return hardware_info_page_contents
+        # Always build the Hardware Info page even when the data is unavailable
+        # (e.g. metrics not warmed up right after boot). Pages can only be
+        # registered at ListScreen.build() time and cannot be added afterwards,
+        # so returning early here would hide this page for the whole session.
+        # Missing values are left blank and get filled in on a later update
+        # once the data becomes available.
+        hardware_info = api_response.hardware_info() or {}
 
         hostname = hardware_info.get("hostname")
         cpu_usage = hardware_info.get("cpu_usage")
@@ -1120,10 +1124,18 @@ class TerminalDisplayClient:
 
         page = widget.Page(widget.PageOptions("Hardware Info"))
         page_items = widget.PageItems()
-        page_items.append(widget.PageItem("Name", hostname))
-        page_items.append(widget.PageItem("CPU Usage", "{:.1f}%".format(cpu_usage)))
+        page_items.append(widget.PageItem("Name", hostname or ""))
         page_items.append(
-            widget.PageItem("Load Average", "{:.2f}".format(load_average))
+            widget.PageItem(
+                "CPU Usage",
+                "{:.1f}%".format(cpu_usage) if cpu_usage is not None else "",
+            )
+        )
+        page_items.append(
+            widget.PageItem(
+                "Load Average",
+                "{:.2f}".format(load_average) if load_average is not None else "",
+            )
         )
         if disk_total and disk_used:
             disk = (disk_used / disk_total) * 100.0
@@ -1146,7 +1158,7 @@ class TerminalDisplayClient:
             )
         else:
             page_items.append(widget.PageItem("Mem", ""))
-        page_items.append(widget.PageItem("Version", version))
+        page_items.append(widget.PageItem("Version", version or ""))
 
         hardware_info_page_contents.append((page, page_items))
 

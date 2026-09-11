@@ -6,7 +6,12 @@
 /downloads
 /resources
 /sstate-cache
+# CI CVE check outputs
+/kernel-cve-analysis
+/.cve-check-report.json
 # mender
 /mender/artifacts/**/*.mender
 # docker
 /docker/*/*.deb
+*.pyc
+__pycache__/
