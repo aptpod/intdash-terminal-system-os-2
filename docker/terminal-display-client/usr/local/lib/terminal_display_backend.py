@@ -9,6 +9,12 @@ import socket
 import urllib
 
 
+# cored REST API 呼び出しの timeout (connect, read) 秒。未指定だと cored 無応答時に
+# HTTP が永久ブロックして表示が固まるため付与する (#403)。
+_DEFAULT_TIMEOUT = (3.1, 10)  # 通常の GET / PATCH / 短時間 POST 用
+_LONG_TIMEOUT = (3.1, 60)  # docker compose 起動・停止を伴う長時間 POST 用
+
+
 class TerminalDisplayBackend:
     def __init__(self, api_client):
         self.api_client = api_client
@@ -221,9 +227,10 @@ class TerminalDisplayBackend:
             * **state** (*str*)
                 現在から５秒以内のストリームの状態を示す文字列。
 
-                * connected - intdashサーバーと接続されています。
-                * disconnected - intdashサーバーと接続されていません
-                * none - 起動していません
+                * connected - intdashサーバーと接続されていて、データの送受信が行われました。
+                * quiet - intdashサーバーと接続されていますが、データの送受信は行われていません。
+                * disconnected - intdashサーバーに接続されていません。
+                * none - 起動していません。
 
             * **pending_data_size** (*int*)
                 送信待ちデータサイズ（バイト）
@@ -244,8 +251,6 @@ class TerminalDisplayBackend:
         status = [resp.json()]
 
         state, update_time = self._aggregate_state(status)
-        if state == "quiet":
-            state = "connected"
 
         resp = self.api_client.list_measurements()
         if resp.status_code != 200:
@@ -925,72 +930,105 @@ class TerminalSystemAPIClient:
         self.base_url = base_url
 
     def get_terminal_system(self):
-        return requests.get(self.base_url + "/terminal_system")
+        return requests.get(self.base_url + "/terminal_system", timeout=_DEFAULT_TIMEOUT)
 
     def get_terminal_system_identification(self):
-        return requests.get(self.base_url + "/terminal_system/identification")
+        return requests.get(
+            self.base_url + "/terminal_system/identification", timeout=_DEFAULT_TIMEOUT
+        )
 
     def get_network_route(self, ip):
-        return requests.get(self.base_url + "/network/route/" + ip)
+        return requests.get(
+            self.base_url + "/network/route/" + ip, timeout=_DEFAULT_TIMEOUT
+        )
 
     def get_network_devices(self):
-        return requests.get(self.base_url + "/network_devices")
+        return requests.get(self.base_url + "/network_devices", timeout=_DEFAULT_TIMEOUT)
 
     def get_network_connections(self):
-        return requests.get(self.base_url + "/network_connections")
+        return requests.get(
+            self.base_url + "/network_connections", timeout=_DEFAULT_TIMEOUT
+        )
 
     def get_terminal_system_metrics(self):
-        return requests.get(self.base_url + "/terminal_system/metrics")
+        return requests.get(
+            self.base_url + "/terminal_system/metrics", timeout=_DEFAULT_TIMEOUT
+        )
 
     def get_connection(self):
-        return requests.get(self.base_url + "/agent/connection")
+        return requests.get(self.base_url + "/agent/connection", timeout=_DEFAULT_TIMEOUT)
 
     def list_upstream(self):
-        return requests.get(self.base_url + "/agent/upstreams")
+        return requests.get(self.base_url + "/agent/upstreams", timeout=_DEFAULT_TIMEOUT)
 
     def list_upstream_state(self):
         params = {"enabled": "true"}
-        return requests.get(self.base_url + "/agent/upstreams/-/state", params=params)
+        return requests.get(
+            self.base_url + "/agent/upstreams/-/state",
+            params=params,
+            timeout=_DEFAULT_TIMEOUT,
+        )
 
     def list_downstream(self):
-        return requests.get(self.base_url + "/agent/downstreams")
+        return requests.get(self.base_url + "/agent/downstreams", timeout=_DEFAULT_TIMEOUT)
 
     def list_downstream_state(self):
         params = {"enabled": "true"}
-        return requests.get(self.base_url + "/agent/downstreams/-/state", params=params)
+        return requests.get(
+            self.base_url + "/agent/downstreams/-/state",
+            params=params,
+            timeout=_DEFAULT_TIMEOUT,
+        )
 
     def get_deferred_upload(self):
-        return requests.get(self.base_url + "/agent/deferred_upload")
+        return requests.get(
+            self.base_url + "/agent/deferred_upload", timeout=_DEFAULT_TIMEOUT
+        )
 
     def get_deferred_upload_state(self):
-        return requests.get(self.base_url + "/agent/deferred_upload/state")
+        return requests.get(
+            self.base_url + "/agent/deferred_upload/state", timeout=_DEFAULT_TIMEOUT
+        )
 
     def list_measurements(self):
-        return requests.get(self.base_url + "/agent/measurements")
+        return requests.get(
+            self.base_url + "/agent/measurements", timeout=_DEFAULT_TIMEOUT
+        )
 
     def list_device_connectors_for_upstream(self):
-        return requests.get(self.base_url + "/agent/device_connectors_upstream")
+        return requests.get(
+            self.base_url + "/agent/device_connectors_upstream", timeout=_DEFAULT_TIMEOUT
+        )
 
     def list_device_connector_state_for_upstream(self):
         params = {"enabled": "true"}
         return requests.get(
-            self.base_url + "/agent/device_connectors_upstream/-/state", params=params
+            self.base_url + "/agent/device_connectors_upstream/-/state",
+            params=params,
+            timeout=_DEFAULT_TIMEOUT,
         )
 
     def list_device_connectors_for_downstream(self):
-        return requests.get(self.base_url + "/agent/device_connectors_downstream")
+        return requests.get(
+            self.base_url + "/agent/device_connectors_downstream",
+            timeout=_DEFAULT_TIMEOUT,
+        )
 
     def list_device_connector_state_for_downstream(self):
         params = {"enabled": "true"}
         return requests.get(
-            self.base_url + "/agent/device_connectors_downstream/-/state", params=params
+            self.base_url + "/agent/device_connectors_downstream/-/state",
+            params=params,
+            timeout=_DEFAULT_TIMEOUT,
         )
 
     def list_device_connectors(self):
-        return requests.get(self.base_url + "/device_connectors")
+        return requests.get(self.base_url + "/device_connectors", timeout=_DEFAULT_TIMEOUT)
 
     def list_device_connector_services(self):
-        return requests.get(self.base_url + "/device_connector_services")
+        return requests.get(
+            self.base_url + "/device_connector_services", timeout=_DEFAULT_TIMEOUT
+        )
 
     def list_diagnostics(self):
         return requests.get(
@@ -998,27 +1036,39 @@ class TerminalSystemAPIClient:
             + "/diagnostics?filters="
             + urllib.parse.quote(
                 '{"category":["alert"],"resolved":[false],"created_by":["docker_container_error"]}'
-            )
+            ),
+            timeout=_DEFAULT_TIMEOUT,
         )
 
     def list_events(self):
-        return requests.get(self.base_url + "/events")
+        return requests.get(self.base_url + "/events", timeout=_DEFAULT_TIMEOUT)
 
     def get_compose_measurement(self):
-        return requests.get(self.base_url + "/docker/composes/measurement")
+        return requests.get(
+            self.base_url + "/docker/composes/measurement", timeout=_DEFAULT_TIMEOUT
+        )
 
     def patch_compose_measurement(self, auto_start: bool):
         headers = {"Content-Type": "application/json"}
         data = '{{"boot_after":"{0}"}}'.format("system" if auto_start else "")
         return requests.patch(
-            self.base_url + "/docker/composes/measurement", headers=headers, data=data
+            self.base_url + "/docker/composes/measurement",
+            headers=headers,
+            data=data,
+            timeout=_DEFAULT_TIMEOUT,
         )
 
     def start_compose_measurement(self):
-        return requests.post(self.base_url + "/docker/composes/measurement/start")
+        # docker compose の起動を伴う長時間処理のため read timeout を長めに取る。
+        return requests.post(
+            self.base_url + "/docker/composes/measurement/start", timeout=_LONG_TIMEOUT
+        )
 
     def stop_compose_measurement(self):
-        return requests.post(self.base_url + "/docker/composes/measurement/stop")
+        # docker compose の停止を伴う長時間処理のため read timeout を長めに取る。
+        return requests.post(
+            self.base_url + "/docker/composes/measurement/stop", timeout=_LONG_TIMEOUT
+        )
 
 
 if __name__ == "__main__":

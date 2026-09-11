@@ -1,5 +1,4 @@
-# NOTE: Use ubuntu:20.04, because ubuntu:22.04 fails to build gdk-pixbuf with GLIB error
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 # install package
 RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
@@ -14,18 +13,27 @@ RUN apt-get update && apt-get install -y \
     # develop tool
     vim nano curl jq whois \
     # docker (rootless mode)
-    uidmap iproute2 \
+    # fuse-overlayfs: Without this, docker-ce/docker-moby recipe's "docker buildx bake"
+    # (Docker Compose cross-build) fails with "overlay mount: invalid argument" due to
+    # overlay-on-overlay nesting. fuse-overlayfs is selected over kernel overlayfs
+    # in rootless mode, avoiding the nesting limitation.
+    uidmap iproute2 fuse-overlayfs \
     && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# install mender-tools
-RUN wget -qP /usr/local/bin https://downloads.mender.io/mender-artifact/3.11.3/linux/mender-artifact
-RUN wget -qP /usr/local/bin https://downloads.mender.io/mender-cli/1.12.0/linux/mender-cli
-RUN chmod +x /usr/local/bin/mender-*
+# install mender-tools (via APT repository)
+# https://docs.mender.io/downloads/workstation-tools
+RUN curl -fsSL https://downloads.mender.io/repos/debian/gpg | tee /etc/apt/trusted.gpg.d/mender.asc && \
+    echo "deb [arch=$(dpkg --print-architecture)] https://downloads.mender.io/repos/workstation-tools ubuntu/$(. /etc/os-release && echo $VERSION_CODENAME)/stable main" \
+        > /etc/apt/sources.list.d/mender.list && \
+    apt-get update && \
+    apt-get install -y mender-artifact mender-cli && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # install yq
-ENV YQ_VERSION v4.44.6
+ENV YQ_VERSION v4.52.5
 RUN wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64
 RUN chmod +x /usr/local/bin/yq
 
@@ -58,17 +66,18 @@ RUN mkdir ~/.ssh && \
     echo "StrictHostKeyChecking no" >> ~/.ssh/config
 
 # install docker (rootless mode)
-ENV DOCKER_VERSION 25.0.3
-# WORKAROUND: The docker-model-plugin package has been removed from the repository,
-# and the script will no longer work as is. As a temporary measure,
-# we will remove the docker-model-plugin from the installation targets.
+ENV DOCKER_VERSION 29.3.0
 RUN cd $HOME && curl -fsSL https://get.docker.com -o get-docker.sh && \
-    sed -i 's/docker-model-plugin//g' get-docker.sh && \
     sudo sh get-docker.sh --version ${DOCKER_VERSION}
+# Use fuse-overlayfs for rootless Docker to avoid overlay-on-overlay nesting issues.
+# Without this, docker-ce/docker-moby recipe's "docker buildx bake" fails with
+# "overlay mount: invalid argument" when building Docker Compose.
+RUN mkdir -p $HOME/.config/docker && \
+    echo '{"storage-driver": "fuse-overlayfs"}' > $HOME/.config/docker/daemon.json
 RUN echo "export XDG_RUNTIME_DIR=/home/$USERNAME/.docker/run" >> $HOME/.bashrc && \
     echo "export PATH=/usr/bin:$PATH" >> ~/.bashrc && \
     echo "export DOCKER_HOST=unix:///home/$USERNAME/.docker/run/docker.sock" >> ~/.bashrc
-RUN dockerd-rootless-setuptool.sh --skip-iptables install
+RUN dockerd-rootless-setuptool.sh --skip-iptables install --force
 
 # install aws-cli
 RUN cd $HOME && curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \

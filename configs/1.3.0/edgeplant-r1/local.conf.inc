@@ -39,7 +39,7 @@ ENABLE_DWC2_HOST = "1"
 VIDEO_CAMERA = "1"
 GPU_MEM = "128"
 # https://meta-raspberrypi.readthedocs.io/en/latest/ipcompliance.html#linux-firmware-rpidistro
-LICENSE_FLAGS_ACCEPTED:append = "synaptics-killswitch"
+LICENSE_FLAGS_ACCEPTED:append = " synaptics-killswitch"
 
 # In Terminal System 2, the kernel is updated regularly.
 # By enabling 'rpi-update-firmware', we accept the risk of the device failing to boot due to issues such as power outages,
@@ -55,3 +55,5 @@ DEFAULT_GPS_DEVICE_PATH = "/dev/ttyGPS"
 DEFAULT_GPS_NMEA_BAUDRATE = "9600"
 DEFAULT_GPS_MESSAGE_TYPE = "none"
 DEFAULT_PPS_DEVICE_PATH = ""
+# cellular-module-init Settings
+USE_MODEM_GNSS = "yes"

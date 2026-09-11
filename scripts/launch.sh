@@ -17,6 +17,7 @@ Optional Variables:
   CONTAINER_NAME    Docker container name
   DL_DIR            Download Directory (default: "$(dirname $THIS_DIR)/downloads")
   SSTATE_CACHE_DIR  Sahred state cache Directory (default: "$(dirname $THIS_DIR)/sstate-cache")
+  SSTATE_MIRROR_DIR SState Mirror Directory
   TS_CONFIGS_DIR    Configs Directory (default: "$(dirname $THIS_DIR)/$TS_CONFIGD_DIR_DEFAULT")
 
 EOF
@@ -66,6 +67,10 @@ fi
 if [ -n "$SSTATE_CACHE_DIR" ]; then
     echo "INFO: Applying bind mount for the sstate-cache directory \"$SSTATE_CACHE_DIR\" to \"/home/builder/work/sstate-cache\"."
     MOUNT_OPTS="$MOUNT_OPTS --mount type=bind,source=$SSTATE_CACHE_DIR,target=/home/builder/work/sstate-cache"
+fi
+if [ -n "$SSTATE_MIRROR_DIR" ]; then
+    echo "INFO: Applying bind mount for the sstate-mirror directory \"$SSTATE_MIRROR_DIR\" to \"/home/builder/work/sstate-mirror\"."
+    MOUNT_OPTS="$MOUNT_OPTS --mount type=bind,source=$SSTATE_MIRROR_DIR,target=/home/builder/work/sstate-mirror,ro"
 fi
 if [ "$(realpath "$TS_CONFIGS_DIR")" != "$(realpath "$TS_CONFIGD_DIR_DEFAULT")" ]; then
     echo "INFO: Applying bind mount for the configs directory \"$TS_CONFIGS_DIR\" to \"/home/builder/work/$TS_CONFIGD_DIR_DEFAULT\"."

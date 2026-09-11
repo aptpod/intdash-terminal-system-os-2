@@ -21,10 +21,30 @@ for part in $parts; do
   fi
 
   exported=
+  export_failed=
   for dir in $mountpoints; do
     if [ -e "$dir/$NAME" ]; then
       filename="exported-measurements-$(date +'%Y%m%d%H%M%S').zip"
-      curl --fail-with-body -sSL -X GET -o "$dir/$filename" http://localhost:8081/api/agent/measurements/-/download
+
+      query_params=""
+      if grep -qE '^clean=true$' "$dir/$NAME"; then
+        query_params="?clean=true"
+      fi
+
+      curl_exit_code=0
+      curl --fail-with-body -sSL -X GET -o "$dir/$filename" "http://localhost:8081/api/agent/measurements/-/download$query_params" || curl_exit_code=$?
+
+      if [ $curl_exit_code -ne 0 ]; then
+        if [ $curl_exit_code -eq 23 ]; then
+          avail=$(df --output=avail -k "$dir" 2>/dev/null | tail -1)
+          export_failed="Error: Export failed. The USB storage ($dir) may be full. Available space: ${avail:-unknown} KB"
+        else
+          export_failed="Error: Export failed."
+        fi
+        rm -f "$dir/$filename"
+        break
+      fi
+
       exported="Agent 2 measurements were exported as $filename to /dev/$part"
       break
     fi
@@ -33,6 +53,11 @@ for part in $parts; do
   if [ -n "$mountpoint" ]; then
     umount "$mountpoint"
     rm -rf "$mountpoint"
+  fi
+
+  if [ -n "$export_failed" ]; then
+    echo "$export_failed"
+    exit 1
   fi
 
   if [ -n "$exported" ]; then

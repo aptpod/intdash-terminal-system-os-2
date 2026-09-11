@@ -1,12 +1,30 @@
 # develop environment
 .vscode
 .history
+.claude
 # poky
-/poky
+/poky*
 /downloads
 /resources
 /sstate-cache
+/sstate-mirror
+# CI CVE check outputs
+/kernel-cve-analysis
+/.cve-check-report.json
 # mender
 /mender/artifacts/**/*.mender
 # docker
 /docker/*/*.deb
+# integration tests
+*.pyc
+*.py[cod]
+*$py.class
+*.so
+__pycache__/
+.pytest_cache/
+.cache/
+.env
+ENV/
+env/
+uv.lock
+test/integration/reports

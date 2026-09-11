@@ -1,9 +1,10 @@
-FROM python:3.11.8-slim
+FROM python:3.14.3-slim
 
 RUN pip install --upgrade pip \
     && pip install --no-cache-dir \
     pyserial \
-    requests
+    requests \
+    setuptools
 
 ENV PYTHONPATH=/usr/local/lib
 COPY usr/local/lib/terminal_display_backend.py /usr/local/lib/terminal_display_backend.py

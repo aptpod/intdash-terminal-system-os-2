@@ -50,7 +50,7 @@ HDMI_FORCE_HOTPLUG = "1"
 # camera_auto_detect=1 is set in meta-terminal-system
 GPU_MEM = "128"
 # https://meta-raspberrypi.readthedocs.io/en/latest/ipcompliance.html#linux-firmware-rpidistro
-LICENSE_FLAGS_ACCEPTED:append = "synaptics-killswitch"
+LICENSE_FLAGS_ACCEPTED:append = " synaptics-killswitch"
 
 # In Terminal System 2, the kernel is updated regularly.
 # By enabling 'rpi-update-firmware', we accept the risk of the device failing to boot due to issues such as power outages,

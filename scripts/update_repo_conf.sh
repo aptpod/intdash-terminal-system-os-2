@@ -5,6 +5,8 @@ readonly TAG_REPOS=" \
     poky \
     meta-mender \
 "
+# Repos using yocto-<major.minor>.<patch> tags instead of codename-prefixed ones
+readonly YOCTO_TAG_REPOS=" poky "
 
 function help() {
     cat <<EOF
@@ -51,9 +53,21 @@ function print_repo_commit() {
             continue
         fi
 
-        # For TAG_REPOS, get the latest tag for the codename
+        # Skip pinned entries (comment contains "#pin")
+        if [[ "$line" == *"#pin"* ]]; then
+            echo "$name: skipped (pinned)"
+            continue
+        fi
+
+        # For TAG_REPOS, get the latest tag within the same release series
         if [[ " $TAG_REPOS " =~ " $name " ]]; then
-            search_refs="${refs%%-*}-*"
+            if [[ " $YOCTO_TAG_REPOS " =~ " $name " ]]; then
+                # yocto-<major.minor>.* (auto-migrates old codename prefix)
+                version="${refs##*-}"
+                search_refs="yocto-${version%.*}.*"
+            else
+                search_refs="${refs%%-*}-*"
+            fi
         else
             search_refs="$refs"
         fi

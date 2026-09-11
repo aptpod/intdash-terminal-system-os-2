@@ -10,6 +10,10 @@ source config.sh
 if [ -z "$DEVICE_TYPES" ] && [ -e "$TS_CONFIGS_DIR/version.conf" ]; then
     readonly DEVICE_TYPES=($(find "$TS_CONFIGS_DIR/$TS_CONFIGS_VERSION" -maxdepth 1 -mindepth 1 -type d -exec basename {} \; | grep -vE "^all$|^template$"))
 fi
+if [ ${#DEVICE_TYPES[@]} -eq 0 ]; then
+    echo "Error: DEVICE_TYPES is not configured. Set it in config.sh." >&2
+    exit 1
+fi
 readonly CUSTOM_DIR="custom"
 readonly CUSTOM_SCRIPT_PATH="${CUSTOM_DIR}/custom_script.sh"
 readonly CONTENTS_DIR="${CUSTOM_DIR}/contents"

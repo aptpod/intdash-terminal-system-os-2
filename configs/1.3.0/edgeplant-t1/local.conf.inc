@@ -13,7 +13,12 @@ MENDER_DATA_PART_SIZE_MB_DEFAULT:jasmine = "2048"
 ## serial number support
 IMAGE_CLASSES += "image_types_tegra_serial_number"
 MENDER_DEVICE_TYPE:jasmine = "edgeplant-t1"
-
+## Fix for delta update rootfs checksum mismatch issue:
+## meta-tegra uses KERNEL_ARGS instead of standard APPEND variable, so the 'ro' parameter
+## from read-only-rootfs IMAGE_FEATURE is not automatically added. This ensures rootfs is
+## mounted read-only, preventing systemd from writing to /etc/machine-id in the base rootfs.
+## Note: Direct append is needed because kernel-bup-payload doesn't have access to IMAGE_FEATURES
+KERNEL_ARGS:append = " ro"
 # support gstreamer in docker
 require conf/include/gstreamer-1.14.conf
 

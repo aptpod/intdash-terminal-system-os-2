@@ -7,14 +7,17 @@ readonly VERSION_CONF="$TS_CONFIGS_DIR/version.conf"
 readonly CONFIGS_DIR="$TS_CONFIGS_DIR/$(grep 'TS_CONFIGS_VERSION' $VERSION_CONF | cut -d'=' -f2)"
 readonly DOCKER_DIR="docker"
 
+# Reproducible builds: Fix timestamps to epoch for deterministic output
+export SOURCE_DATE_EPOCH=0
+
 function help() {
     cat <<EOF
-Usage: $(basename "${BASH_SOURCE[0]}") --image-dir ./docker/<image> [--target <TARGET> | --tag <image_name:tag> | --push]
+Usage: $(basename "${BASH_SOURCE[0]}") --image-dir ./docker/<image> --tag <image_name:tag> [--target <TARGET>] [--push]
 
 Options:
   --image-dir            Image Directory (./docker/<image>)
+  --tag                  Image Tag (Required)
   -t, --target           Build Target (Required only for device-connector-intdash)
-  --tag                  Image Tag
   --push                 Push Image
   -h, --help             Print this help and exit
 
@@ -154,6 +157,9 @@ function build_docker_image() {
         if [ "$IMAGE_NAME" == "device-connector-intdash" ]; then
             BUILD_ARGS+=" --build-arg TS_BASE_IMAGE_DEVICE_CONNECTOR=${TS_BASE_IMAGE_DEVICE_CONNECTOR}"
             BUILD_ARGS+=" --build-arg TS_INSTALL_PACKAGES_DEVICE_CONNECTOR=${TS_INSTALL_PACKAGES_DEVICE_CONNECTOR}"
+            BUILD_ARGS+=" --build-arg TS_APT_EXTRA_REPO_KEY_DEVICE_CONNECTOR=${TS_APT_EXTRA_REPO_KEY_DEVICE_CONNECTOR}"
+            BUILD_ARGS+=" --build-arg TS_APT_EXTRA_REPO_DEVICE_CONNECTOR=${TS_APT_EXTRA_REPO_DEVICE_CONNECTOR}"
+            BUILD_ARGS+=" --build-arg TS_APT_EXTRA_REPO_PIN_PACKAGES_DEVICE_CONNECTOR=${TS_APT_EXTRA_REPO_PIN_PACKAGES_DEVICE_CONNECTOR}"
         fi
 
         if [ "$IMAGE_NAME" != "builder" ]; then
@@ -200,12 +206,10 @@ while :; do
         ;;
     --tag)
         IMAGE_TAG="$2"
-        BUILD_ARGS+=" --tag $IMAGE_TAG"
         shift 2
         ;;
     --push)
         PUSH_IMAGES=true
-        BUILD_ARGS+=" --push"
         shift 1
         ;;
     -h | --help)
@@ -239,9 +243,16 @@ if [ "$IMAGE_NAME" == "device-connector-intdash" ] && [ ! -d "$CONFIGS_DIR/$TARG
     exit 1
 fi
 
-if [ "$PUSH_IMAGES" = true ] && [ -z "$IMAGE_TAG" ]; then
-    echo "ERROR: Set --tag option for push."
+if [ -z "$IMAGE_TAG" ]; then
+    echo "ERROR: --tag option is required."
     exit 1
+fi
+
+# Reproducible builds: rewrite-timestamp
+if [ "$PUSH_IMAGES" = true ]; then
+    BUILD_ARGS+=" --output type=image,name=${IMAGE_TAG},push=true,rewrite-timestamp=true"
+else
+    BUILD_ARGS+=" --output type=docker,name=${IMAGE_TAG},rewrite-timestamp=true"
 fi
 
 setup_environments

@@ -6,12 +6,15 @@ readonly TS_CONFIGS_DIR="${TS_CONFIGS_DIR:=$TS_CONFIGD_DIR_DEFAULT}"
 readonly VERSION_CONF="$TS_CONFIGS_DIR/version.conf"
 readonly CONFIGS_DIR="$TS_CONFIGS_DIR/$(grep 'TS_CONFIGS_VERSION' $VERSION_CONF | cut -d'=' -f2)"
 readonly POKY_DIR="poky"
+readonly MENDER_ARTIFACTS_CUSTOM_DIR="mender/artifacts/custom"
 readonly TMPFILE_GIT=/tmp/setup_sh_git_stderr_tmp
 readonly EXTERNAL_OUT_DIR="$(readlink -f "${THIS_DIR}"/../resources)"
 readonly BUILD_ENVS=(
 )
 readonly BUILD_OPT_ENVS=(
     "TS_MENDER_TENANT_TOKEN"
+    "TS_MENDER_EMAIL"
+    "TS_MENDER_PASS"
     "TS_AWS_CREDS_DEF_ACCESS_KEY_ID"
     "TS_AWS_CREDS_DEF_SECRET_ACCESS_KEY"
     "TS_AWS_ECR_BASE_URI"
@@ -36,6 +39,8 @@ Optional Variables:
 
   Mender credentials:
     TS_MENDER_TENANT_TOKEN              Mender tenant/organization token
+    TS_MENDER_EMAIL                     Mender Email
+    TS_MENDER_PASS                      Mender Password
 
   ECR credentials:
     TS_AWS_CREDS_DEF_ACCESS_KEY_ID      Access key id
@@ -161,8 +166,26 @@ function download_external_source() {
         output="$EXTERNAL_OUT_DIR/$(basename $uri)"
     fi
 
-    echo "download $name"
-    curl -fsSL -o "$output" -H "$header" $uri
+    if [[ "$name" == "mender-binary-delta" ]]; then
+        if [[ ! "$TS_FEATURES" == *"mender-binary-delta"* ]]; then
+            echo "INFO: TS_FEATURES mender-binary-delta is disabled. mender-binary-delta will not be installed."
+            return
+        fi
+
+        echo "download $name"
+        if [ -n "$TS_MENDER_EMAIL" ] && [ -n "$TS_MENDER_PASS" ]; then
+            if ! curl -fsSL -u $TS_MENDER_EMAIL:$TS_MENDER_PASS -o "$output" $uri; then
+                echo "ERROR: Failed to download mender-binary-delta. Please check your Mender account credentials."
+                exit 1
+            fi
+        else
+            echo "ERROR: Failed to download mender-binary-delta. Please set variables \"TS_MENDER_EMAIL\" and \"TS_MENDER_PASS\", or remove mender-binary-delta from \"TS_FEATURES\"."
+            exit 1
+        fi
+    else
+        echo "download $name"
+        curl -fsSL -o "$output" -H "$header" $uri
+    fi
 }
 
 # Sets RESOLVED_HEADER instead of echoing the result: a command substitution would
@@ -260,48 +283,13 @@ function download_external_docker_images() {
             name="${repo}"
         fi
 
-        echo "download preinstall docker image $image for ${TS_TARGET_GOOS} ${TS_TARGET_GOARCH} ${TS_TARGET_GOARM}"
-
-        # get pull name
-        manifest=$(docker manifest inspect $image)
-        if [ -n "${TS_TARGET_GOARM}" ]; then
-            digest=$(echo $manifest | jq -r \
-                --arg TARGET_GOOS ${TS_TARGET_GOOS} \
-                --arg TARGET_GOARCH ${TS_TARGET_GOARCH} \
-                --arg TARGET_GOARM "v${TS_TARGET_GOARM}" \
-                '.manifests[]
-                | select(.platform.os == $TARGET_GOOS)
-                | select(.platform.architecture == $TARGET_GOARCH)
-                | select(.platform.variant == $TARGET_GOARM)
-                | .digest' 2>/dev/null || true)
-        else
-            digest=$(echo $manifest | jq -r \
-                --arg TARGET_GOOS ${TS_TARGET_GOOS} \
-                --arg TARGET_GOARCH ${TS_TARGET_GOARCH} \
-                '.manifests[]
-                | select(.platform.os == $TARGET_GOOS)
-                | select(.platform.architecture == $TARGET_GOARCH)
-                | .digest' 2>/dev/null || true)
-        fi
-
-        if [ -n "$digest" ]; then
-            # multiple arch image
-            pull_name="${repo}@${digest}"
-        else
-            # single arch image
-            pull_name="${repo}:${tag}"
-        fi
+        echo "download preinstall docker image $image for ${TS_TARGET_GOOS} ${TS_TARGET_GOARCH}"
+        platform="${TS_TARGET_GOOS}/${TS_TARGET_GOARCH}"
 
         # docker pull
-        if ! docker pull -q ${pull_name} >/dev/null 2>&1; then
+        if ! docker pull --platform ${platform} -q ${image}; then
             echo "pull error ${image}"
             exit 1
-        fi
-
-        # docker tag
-        if [ -n "$digest" ]; then
-            image_id=$(docker images --digests | grep "${digest}" | awk {'print $4'} | uniq)
-            docker tag $image_id $image
         fi
 
         # docker save
@@ -311,7 +299,7 @@ function download_external_docker_images() {
             rm "${EXTERNAL_OUT_DIR}/${archive}"
         fi
 
-        docker save ${image} | gzip >${EXTERNAL_OUT_DIR}/${archive}
+        docker save --platform ${platform} ${image} | gzip --rsyncable >${EXTERNAL_OUT_DIR}/${archive}
         if [ ! -f "${EXTERNAL_OUT_DIR}/${archive}" ]; then
             echo "Error saving ${archive}"
             exit 1
@@ -332,7 +320,37 @@ function export_archived_docker_images() {
     echo "export BB_ENV_PASSTHROUGH_ADDITIONS=\"\$BB_ENV_PASSTHROUGH_ADDITIONS TS_SRC_URI_DOCKER_ARCHIVE_LOAD\"" >>"$POKY_DIR/oe-init-build-env"
 }
 
-function download_external() {
+function generate_mender_artifacts() {
+    echo "generate mender artifacts"
+
+    (
+        cd "./$MENDER_ARTIFACTS_CUSTOM_DIR"
+
+        # generate artifacts
+        if ! ./generate.sh > /dev/null 2>&1; then
+            echo "ERROR: Failed to generate mender artifacts."
+            exit 1
+        fi
+
+        # copy operation artifacts to external out dir
+        for artifact in $(find . -maxdepth 2 -mindepth 2 -type f -name "*.mender"); do
+            custom_artifact_type="$(mender-artifact read "$artifact" 2>/dev/null | grep -P -o '"custom_artifact_type":\s*"\K[^"]*')"
+            if [ "$custom_artifact_type" = "operation" ]; then
+                # Remove version from filename
+                basename=$(basename "$artifact")
+                new_name=$(echo "$basename" | sed -E 's/_[^_]*\.mender$/.mender/')
+                cp "$artifact" "$EXTERNAL_OUT_DIR/$new_name"
+            fi
+        done
+    )
+
+    # export TS_SRC_URI_MENDER_OPERATION_ARTIFACTS for bitbake terminal-system-cored recipe
+    local src_uri=$(find "${EXTERNAL_OUT_DIR}" -name "*.mender" -exec echo "file://{}" \; | tr '\n' ' ')
+    echo "export TS_SRC_URI_MENDER_OPERATION_ARTIFACTS=\"${src_uri}\"" >>"$POKY_DIR/oe-init-build-env"
+    echo "export BB_ENV_PASSTHROUGH_ADDITIONS=\"\$BB_ENV_PASSTHROUGH_ADDITIONS TS_SRC_URI_MENDER_OPERATION_ARTIFACTS\"" >>"$POKY_DIR/oe-init-build-env"
+}
+
+function setup_external() {
     initialize_external_out_dir
 
     download_external_sources "$CONFIGS_DIR/all/external_sources.conf"
@@ -340,6 +358,8 @@ function download_external() {
 
     download_external_docker_images "$CONFIGS_DIR/all/external_docker_images.conf"
     export_archived_docker_images
+
+    generate_mender_artifacts
 }
 
 function show_layers() {
@@ -465,6 +485,6 @@ if [ "$AS_SOURCE" = false ]; then
     initialize_build_dir
     copy_configs
     setup_environments
-    download_external
+    setup_external
     show_layers
 fi
